@@ -1,0 +1,84 @@
+openapi: 3.0.3
+info:
+  title: Task Service API
+  description: Create, list, update and delete tasks.
+  version: 1.0.0
+
+servers:
+  - url: /
+
+paths:
+  /api/v1/tasks/task:
+    post:
+      tags: [Tasks]
+      summary: Create a task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, description, userId]
+              properties:
+                title:
+                  type: string
+                  example: Write docs
+                description:
+                  type: string
+                  example: README and technical docs
+                userId:
+                  type: string
+                  example: user-1
+                userEmail:
+                  type: string
+                  example: ada@example.com
+      responses:
+        "201":
+          description: Task created
+        "503":
+          description: RabbitMQ not connected
+
+    get:
+      tags: [Tasks]
+      summary: List all tasks
+      responses:
+        "200":
+          description: List of tasks
+
+  /api/v1/tasks/task/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      tags: [Tasks]
+      summary: Update a task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: New title
+                description:
+                  type: string
+                  example: New description
+      responses:
+        "200":
+          description: Task updated
+        "404":
+          description: Task not found
+
+    delete:
+      tags: [Tasks]
+      summary: Delete a task
+      responses:
+        "200":
+          description: Task deleted
+        "404":
+          description: Task not found
