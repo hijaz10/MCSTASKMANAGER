@@ -1,0 +1,71 @@
+name: mcs-prod
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    command: ["mongod", "--wiredTigerCacheSizeGB", "0.25"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:?MONGO_USER is required}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?MONGO_PASSWORD is required}
+    volumes:
+      - mongo_data:/data/db
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?RABBITMQ_USER is required}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  user-service:
+    build: ./User_service
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    environment:
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-1d}
+      - MONGO_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/users?authSource=admin
+
+  task-service:
+    build: ./Task_service
+    restart: unless-stopped
+    depends_on:
+      - mongo
+      - rabbitmq
+    environment:
+      - MONGO_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/users?authSource=admin
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq
+
+  notification-service:
+    build: ./Noti_services
+    restart: unless-stopped
+    depends_on:
+      - rabbitmq
+    environment:
+      - EMAIL_USER=${EMAIL_USER:?EMAIL_USER is required}
+      - EMAIL_PASS=${EMAIL_PASS:?EMAIL_PASS is required}
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - user-service
+      - task-service
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  mongo_data:
+  rabbitmq_data:
+  caddy_data:
+  caddy_config:
